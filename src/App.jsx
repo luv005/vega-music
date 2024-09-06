@@ -2,41 +2,70 @@ import React, { useRef, useEffect, useState } from 'react'
 import './App.css'
 
 function App() {
-  const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [error, setError] = useState(null);
   const [audioError, setAudioError] = useState(null);
   const audioRef = useRef(null);
 
-  const [songInputText, setSongInputText] = useState('');
   const [lyrics, setLyrics] = useState('');
-  const [referVoice, setReferVoice] = useState('');
-  const [referInstrumental, setReferInstrumental] = useState('');
-
-  const handleSongInputChange = (e) => {
-    setSongInputText(e.target.value);
-  };
+  const musicFileUrl = 'https://cdn.hailuoai.com/prod/2024-08-21-16/featured_music/1724227340181812789-Echoes%20Of%20Love.wav';
 
   const handleLyricsChange = (e) => {
     setLyrics(e.target.value);
   };
 
-  const handleReferVoiceChange = (e) => {
-    setReferVoice(e.target.value);
-  };
+  const uploadFile = async (url) => {
+    try {
+      // First, fetch the file content from the URL
+      const fileResponse = await fetch(url);
+      if (!fileResponse.ok) {
+        throw new Error('Failed to fetch the file from the provided URL');
+      }
+      const fileBlob = await fileResponse.blob();
 
-  const handleReferInstrumentalChange = (e) => {
-    setReferInstrumental(e.target.value);
+      // Create FormData and append the file
+      const formData = new FormData();
+      formData.append('purpose', 'song');
+      formData.append('file', fileBlob, 'audio.wav'); // 'audio.wav' is the filename sent to the server
+
+      // Send the upload request
+      const uploadResponse = await fetch('https://api.minimax.chat/v1/music_upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.MINIMAXI_API_KEY}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      const data = await uploadResponse.json();
+      return { referVoice: data.voice_id, referInstrumental: data.instrumental_id };
+    } catch (error) {
+      console.error('Error in uploadFile:', error);
+      throw error;
+    }
   };
 
   const createSong = async () => {
-    if (!lyrics.trim()) return;
+    if (!lyrics.trim()) {
+      console.log("Lyrics are empty, returning");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
     setAudioError(null);
+
     try {
+      console.log("Uploading file...");
+      const { referVoice, referInstrumental } = await uploadFile(musicFileUrl);
+      console.log('referVoice', referVoice, 'referInstrumental', referInstrumental, 'musicFileUrl', musicFileUrl);
+
+      console.log("Generating song...");
       const response = await fetch('/api/generate-song', {
         method: 'POST',
         headers: {
@@ -56,8 +85,23 @@ function App() {
 
       const data = await response.json();
       console.log('Received data:', data);
-      if (data.output) {
-        setAudioUrl(data.output);
+      if (data.output && data.output.audio_content) {
+        console.log('Audio content length:', data.output.audio_content.length);
+        
+        // Convert base64 to Blob
+        const byteCharacters = atob(data.output.audio_content);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], {type: data.output.content_type || 'audio/mpeg'});
+        
+        console.log('Blob size:', blob.size);
+        
+        // Create Blob URL
+        const audioUrl = URL.createObjectURL(blob);
+        setAudioUrl(audioUrl);
       } else {
         throw new Error('Invalid output format from API');
       }
@@ -75,53 +119,12 @@ function App() {
       audio.src = audioUrl;
       console.log('Setting audio source:', audioUrl);
       audio.load(); // Explicitly load the audio
+
+      return () => {
+        URL.revokeObjectURL(audioUrl);
+      };
     }
   }, [audioUrl]);
-
-  const generateMusic = async () => {
-    if (!inputText.trim()) return;
-
-    setIsLoading(true);
-    setError(null);
-    setAudioError(null);
-    try {
-      const response = await fetch('/api/generate-music', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt: inputText }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to generate music');
-      }
-
-      const data = await response.json();
-      console.log('Received data:', data);
-      if (data.output && typeof data.output === 'string') {
-        setAudioUrl(data.output);
-      } else {
-        throw new Error('Invalid output format from API');
-      }
-    } catch (error) {
-      console.error("Error generating music:", error);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    setInputText(e.target.value);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      generateMusic();
-    }
-  };
 
   const buttonStyle = {
     backgroundColor: '#000000',
@@ -133,7 +136,7 @@ function App() {
     fontWeight: 'bold',
     cursor: 'pointer',
     transition: 'background-color 0.3s ease',
-    width: '180px', // Set a fixed width for both buttons
+    width: '180px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -144,7 +147,7 @@ function App() {
     flexDirection: 'column',
     alignItems: 'center',
     width: '100%',
-    maxWidth: '600px', // Adjust this value as needed
+    maxWidth: '600px',
     margin: '0 auto',
   };
 
@@ -159,12 +162,6 @@ function App() {
     width: '100%',
   };
 
-  // Add this new style for the second input container
-  const secondInputContainerStyle = {
-    ...inputContainerStyle,
-    marginTop: '50px', // Increase this value to add more space
-  };
-
   return (
     <main className="container" style={containerStyle}>
       <div className="logo">
@@ -173,54 +170,23 @@ function App() {
         </svg>
         <h1>Vega Music</h1>
       </div>
+      
       <div className="searchContainer" style={inputContainerStyle}>
         <input
           type="text"
-          placeholder="A cozy rainy day"
-          className="searchInput"
-          value={inputText}
-          onChange={handleInputChange}
-          onKeyPress={handleKeyPress}
-          style={{ flexGrow: 1, border: 'none', background: 'transparent', padding: '10px 15px', fontSize: '16px', outline: 'none' }}
-        />
-        <button 
-          className="createButton" 
-          onClick={generateMusic} 
-          disabled={isLoading}
-          style={buttonStyle}
-        >
-          {isLoading ? <div className="loader"></div> : "Create a Melody"}
-        </button>
-      </div>
-      
-      <div className="searchContainer" style={secondInputContainerStyle}>
-        <input
-          type="text"
-          placeholder="Enter lyrics"
+          placeholder="Enter your lyrics here"
           className="searchInput"
           value={lyrics}
           onChange={handleLyricsChange}
           style={{ flexGrow: 1, border: 'none', background: 'transparent', padding: '10px 15px', fontSize: '16px', outline: 'none' }}
         />
-        <input
-          type="text"
-          placeholder="Reference Voice ID (optional)"
-          className="searchInput"
-          value={referVoice}
-          onChange={handleReferVoiceChange}
-          style={{ flexGrow: 1, border: 'none', background: 'transparent', padding: '10px 15px', fontSize: '16px', outline: 'none' }}
-        />
-        <input
-          type="text"
-          placeholder="Reference Instrumental ID (optional)"
-          className="searchInput"
-          value={referInstrumental}
-          onChange={handleReferInstrumentalChange}
-          style={{ flexGrow: 1, border: 'none', background: 'transparent', padding: '10px 15px', fontSize: '16px', outline: 'none' }}
-        />
+
         <button 
           className="createButton" 
-          onClick={createSong}
+          onClick={() => {
+            console.log("Button clicked");
+            createSong();
+          }}
           disabled={isLoading}
           style={buttonStyle}
         >
@@ -230,12 +196,15 @@ function App() {
 
       {audioUrl && (
         <div className="outputContainer">
-          <h2>Generated Music:</h2>
+          <h2>Generated Song:</h2>
           <audio 
             ref={audioRef} 
             controls 
             onError={(e) => {
               console.error('Audio error:', e);
+              console.error('Audio error details:', e.target.error);
+              console.error('Audio src:', e.target.src);
+              console.log(audioRef)
               setAudioError(`Error loading audio: ${e.target.error ? e.target.error.message : 'Unknown error'}`);
             }}
           />

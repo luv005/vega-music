@@ -2,7 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
-import generateMusicHandler from './api/generate-music.js';
+import generateSongHandler from './api/generate-song.js';
 
 dotenv.config();
 
@@ -18,8 +18,8 @@ app.use(express.json());
 app.use(express.static(join(__dirname, 'dist')));
 
 // API route
-app.post('/api/generate-music', (req, res) => {
-  generateMusicHandler(req, res, process.env);
+app.post('/api/generate-song', (req, res) => {
+  generateSongHandler(req, res, process.env);
 });
 
 // Serve the index.html for any other routes
