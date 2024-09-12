@@ -24,7 +24,7 @@ function App() {
     setError(null);
 
     try {
-      const response = await fetch('http://13.228.25.164:5000/api/generate_lyrics', {
+      const response = await fetch('http://localhost:5000/api/generate_lyrics', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,7 +59,7 @@ function App() {
     setError(null);
 
     try {
-      const response = await fetch('http://13.228.25.164:5000/api/process_song', {
+      const response = await fetch('http://localhost:5000/api/process_song', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
