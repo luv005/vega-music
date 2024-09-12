@@ -52,8 +52,11 @@ def process_song():
         print("Subprocess stdout:", result.stdout)
         print("Subprocess stderr:", result.stderr)
         
-        # The main.py script should print the output filename
-        output_filename = result.stdout.strip()
+        # Extract the output filename starting from "output"
+        output_start = result.stdout.find("output")
+        if output_start == -1:
+            raise ValueError("No 'output' found in main.py stdout")
+        output_filename = result.stdout[output_start:].strip()
         print("Output filename:", output_filename)  # Log the output filename
         
         if not output_filename:
@@ -99,7 +102,7 @@ def generate_lyrics(theme):
         messages=[
             {
                 "role": "user",
-                "content": f"Write song lyrics (no more than 200 words) with the theme: {theme}. The lyrics should be creative and engaging.",
+                "content": f"Write song lyrics (no more than 80 words) with the theme: {theme}. The lyrics should be creative and engaging.",
 
                 }
             ],

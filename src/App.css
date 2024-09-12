@@ -145,20 +145,44 @@ h2, h3 {
 
 .current-song {
   margin-bottom: 20px;
-  padding: 15px;
-  background-color: #2a2a2a;
+  padding: 20px;
+  background-color: #1a1a1a;
   border-radius: 12px;
-  border: 1px solid #1db954;
+  border: 1px solid #333;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .current-song h3 {
   margin-top: 0;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  color: #1db954;
 }
 
 audio {
   width: 100%;
   margin-top: 10px;
+  background-color: #2a2a2a;
+  border-radius: 30px;
+  outline: none;
+}
+
+audio::-webkit-media-controls-panel {
+  background-color: #2a2a2a;
+}
+
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+  color: #e0e0e0;
+}
+
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-mute-button {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+audio::-webkit-slider-thumb,
+audio::-webkit-media-controls-volume-slider {
+  background-color: #1db954;
 }
 
 .error-message {

@@ -72,12 +72,14 @@ function App() {
       }
 
       const data = await response.json();
+      console.log("data", data);
       const newSong = { 
         lyrics, 
         style: selectedStyle, 
         id: Date.now(),
         audioUrl: data.audio_url 
       };
+      console.log("newSong", newSong);
       setCurrentSong(newSong);
     } catch (err) {
       setError('Error generating song. Please try again.');
