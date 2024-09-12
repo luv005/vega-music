@@ -41,16 +41,11 @@ def create_song(lyrics, refer_voice, refer_instrumental):
     response.raise_for_status()  # This will raise an exception for HTTP errors
     return response.json()['data']['audio']
 
-def main():
+def generate_song(lyrics):
     try:
-        if len(sys.argv) < 2:
-            raise ValueError("No lyrics provided")
-        
-        lyrics = sys.argv[1]
-        api_key = get_api_key()  # Check if the API key is available at the start
+        api_key = get_api_key()
         print(f"API Key (first 5 chars): {api_key[:5]}...", file=sys.stderr)
         
-        # For this example, we're using pre-defined IDs
         refer_instrumental = "instrumental-2024091210533224-2535"
         refer_voice = "vocal-2024091210533224-2508"
 
@@ -64,14 +59,11 @@ def main():
         with open(output_path, 'wb') as f:
             f.write(bytes.fromhex(audio_content))
         
-        print(output_filename)  # Print only the filename for the server to read
-        sys.stdout.flush()  # Ensure the output is immediately written
-
+        return output_filename
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)
         print(traceback.format_exc(), file=sys.stderr)  # Print the full traceback
-        sys.stderr.flush()  # Ensure the error is immediately written
-        sys.exit(1)
+        raise
 
 if __name__ == "__main__":
     main()

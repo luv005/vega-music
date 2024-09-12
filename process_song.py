@@ -1,21 +1,23 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-import subprocess
-import time
 import traceback
-import os
 import openai
-import requests
-from werkzeug.utils import secure_filename
+import boto3
+from botocore.exceptions import NoCredentialsError
+from main import generate_song  # Import the function from main.py
 
 app = Flask(__name__, static_folder='build', static_url_path='/')
 CORS(app)
-# Configure this to your desired upload directory
-UPLOAD_FOLDER = 'public/generated_songs'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# AWS S3 configuration
+S3_BUCKET = 'vegasongs'
+S3_REGION = 'ap-southeast-1'
+
+# Initialize S3 client
+s3_client = boto3.client('s3', region_name=S3_REGION)
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route('/')
 def serve():
@@ -45,38 +47,40 @@ def process_song():
     lyrics = request.json['lyrics']
 
     try:
-        # Call the main script with lyrics as an argument
-        result = subprocess.run(['python', 'main.py', lyrics], 
-                                capture_output=True, text=True, check=True)
+        # Call the generate_song function directly
+        output_filename = generate_song(lyrics)
         
-        print("Subprocess stdout:", result.stdout)
-        print("Subprocess stderr:", result.stderr)
-        
-        # Extract the output filename starting from "output"
-        output_start = result.stdout.find("output")
-        if output_start == -1:
-            raise ValueError("No 'output' found in main.py stdout")
-        output_filename = result.stdout[output_start:].strip()
-        print("Output filename:", output_filename)  # Log the output filename
+        print("Output filename:", output_filename)
         
         if not output_filename:
-            raise ValueError("No output filename received from main.py")
+            raise ValueError("No output filename received from generate_song")
         
-        # Generate URL for the audio file
-        audio_url = f'/generated_songs/{output_filename}'
+        # Upload file to S3
+        local_file_path = os.path.join('public/generated_songs', output_filename)
+        s3_file_path = f'generated_songs/{output_filename}'
+        
+        s3_client.upload_file(
+            local_file_path, 
+            S3_BUCKET, 
+            s3_file_path,
+            ExtraArgs={'ContentType': 'audio/mpeg'}
+        )
+        
+        # Generate URL for the audio file in S3
+        audio_url = f'https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_file_path}'
+        
+        # Remove local file after uploading to S3
+        os.remove(local_file_path)
         
         response_data = {'audio_url': audio_url}
         print("Sending response:", response_data)
         return jsonify(response_data)
     
-    except subprocess.CalledProcessError as e:
-        print(f"Error in subprocess: {e}")
-        print(f"Subprocess stdout: {e.stdout}")
-        print(f"Subprocess stderr: {e.stderr}")
-        return jsonify({'error': 'Failed to generate song: ' + str(e)}), 500
+    except NoCredentialsError:
+        return jsonify({'error': 'AWS credentials not available'}), 500
     except Exception as e:
         print(f"Unexpected error: {e}")
-        print(traceback.format_exc())  # Print the full traceback
+        print(traceback.format_exc())
         return jsonify({'error': 'An unexpected error occurred: ' + str(e)}), 500
 
 @app.route('/generated_songs/<path:filename>')
@@ -102,7 +106,7 @@ def generate_lyrics(theme):
         messages=[
             {
                 "role": "user",
-                "content": f"Write song lyrics (no more than 80 words) with the theme: {theme}. The lyrics should be creative and engaging.",
+                "content": f"Write song lyrics (no more than 70 words) with the theme: {theme}. The lyrics should be creative and engaging.",
 
                 }
             ],
@@ -117,5 +121,4 @@ def generate_lyrics(theme):
 
 if __name__ == '__main__':
     print("Starting Flask server...")
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.run(debug=True, host="0.0.0.0", port=5000)
