@@ -1,5 +1,6 @@
 run = "npm run dev"
 entrypoint = "src/main.jsx"
+modules = ["nodejs-20", "python-3.11"]
 
 [nix]
 channel = "stable-22_11"
@@ -33,3 +34,7 @@ publicDir = "dist"
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 3001
+externalPort = 3001

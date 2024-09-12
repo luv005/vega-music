@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 
@@ -19,7 +19,29 @@ app.use(express.static(join(__dirname, 'dist')));
 
 // API route
 app.post('/api/generate-song', (req, res) => {
-  generateSongHandler(req, res, process.env);
+  const { lyrics } = req.body;
+  
+  const pythonProcess = spawn('python', ['process_song.py', lyrics]);
+
+  let outputData = '';
+
+  pythonProcess.stdout.on('data', (data) => {
+    outputData += data.toString();
+  });
+
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`Python script error: ${data}`);
+  });
+
+  pythonProcess.on('close', (code) => {
+    if (code !== 0) {
+      return res.status(500).json({ message: 'Failed to generate song' });
+    }
+    
+    // Assuming the Python script saves the file and returns the filename
+    const audioUrl = `/generated_songs/${outputData.trim()}`;
+    res.json({ audioUrl });
+  });
 });
 
 // Serve the index.html for any other routes
