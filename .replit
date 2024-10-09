@@ -1,11 +1,11 @@
 run = "npm run dev"
-entrypoint = "src/main.jsx"
+entrypoint = "app/page.tsx"
+modules = ["python-3.11"]
 
 [nix]
 channel = "stable-22_11"
 
 [env]
-XDG_CONFIG_HOME = "/home/runner/.config"
 PATH = "/home/runner/$REPL_SLUG/.config/npm/node_global/bin:/home/runner/$REPL_SLUG/node_modules/.bin:$PATH"
 npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
 
@@ -26,10 +26,14 @@ pattern = "**/{*.js,*.jsx,*.ts,*.tsx}"
 start = "typescript-language-server --stdio"
 
 [deployment]
-deploymentTarget = "static"
+deploymentTarget = "cloudrun"
 build = ["sh", "-c", "npm run build"]
-publicDir = "dist"
+run = ["sh", "-c", "npm start"]
 
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
